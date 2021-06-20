@@ -1,0 +1,8 @@
+MOT
+runs
+
+**/*.pyc
+__pycache__/
+*.py[cod]
+appearance_network_model
+motion_network_model

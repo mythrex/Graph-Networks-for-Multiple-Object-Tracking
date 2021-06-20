@@ -1,7 +1,7 @@
 #mot_dataset_dir = '/media/codinglee/DATA/Ubuntu16.04/Desktop/MOT/'
 mot_dataset_dir = './MOT/'
 
-model_dir = 'model/'
+model_dir = 'appearance_network_model/'
 
 u_initial = 1  # 1 - random, 0 - 0
 

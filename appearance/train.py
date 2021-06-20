@@ -47,23 +47,23 @@ class GN():
         print('     Preparing the model...')
         self.resetU()
 
-        self.Uphi = uphi().to(self.device)
-        self.Vphi = vphi().to(self.device)
-        self.Ephi1 = ephi().to(self.device)
-        self.Ephi2 = ephi().to(self.device)
+        self.U_phi = uphi().to(self.device)
+        self.V_phi = vphi().to(self.device)
+        self.E_phi1 = ephi().to(self.device)
+        self.E_phi2 = ephi().to(self.device)
 
         self.criterion = nn.MSELoss() if criterion_s else nn.CrossEntropyLoss()
         self.criterion = self.criterion.to(self.device)
 
         self.criterion_v = nn.MSELoss().to(self.device)
 
-        self.optimizer1 = optim.Adam([
-            {'params': self.Ephi1.parameters()}],
+        self.opt1 = optim.Adam([
+            {'params': self.E_phi1.parameters()}],
             lr=lr)
-        self.optimizer2 = optim.Adam([
-            {'params': self.Uphi.parameters()},
-            {'params': self.Vphi.parameters()},
-            {'params': self.Ephi2.parameters()}],
+        self.opt2 = optim.Adam([
+            {'params': self.U_phi.parameters()},
+            {'params': self.V_phi.parameters()},
+            {'params': self.E_phi2.parameters()}],
             lr=lr)
 
         self.writer = SummaryWriter()
@@ -127,16 +127,16 @@ class GN():
                     vs = self.train_set.getApp(1, vs_index)
                     vr = self.train_set.getApp(0, vr_index)
 
-                    self.optimizer1.zero_grad()
-                    e1 = self.Ephi1(e, vs, vr, self.u)
-                    # update the Ephi1
+                    self.opt1.zero_grad()
+                    e1 = self.E_phi1(e, vs, vr, self.u)
+                    # update the E_phi1
                     loss = self.criterion(e1, gt.squeeze(1))
                     loss.backward()
-                    self.optimizer1.step()
+                    self.opt1.step()
                     num += self.batchsize
                 if epoch_loss_i / num < self.loss_threhold:
                     break
-            # print('         Updating the Ephi1: %d times.' % epoch_i)
+            # print('         Updating the E_phi1: %d times.' % epoch_i)
 
             for epoch in range(1, self.nEpochs):
                 num = 0
@@ -153,10 +153,10 @@ class GN():
                     vs = self.train_set.getApp(1, vs_index)
                     vr = self.train_set.getApp(0, vr_index)
 
-                    e1 = self.Ephi1(e, vs, vr, self.u)
+                    e1 = self.E_phi1(e, vs, vr, self.u)
 
                     e1 = e1.data
-                    vr1 = self.Vphi(e1, vs, vr, self.u)
+                    vr1 = self.V_phi(e1, vs, vr, self.u)
                     candidates.append((e1, gt, vs, vr, vr1))
                     E_CON.append(torch.mean(e1, 0))
                     V_CON.append(torch.mean(vs, 0))
@@ -174,10 +174,10 @@ class GN():
                     tmp_gt = 1 - \
                         torch.FloatTensor(gt.cpu().numpy()).to(self.device)
 
-                    u1 = self.Uphi(E, V, self.u)
-                    e2 = self.Ephi2(e1, vs, vr1, u1)
+                    u1 = self.U_phi(E, V, self.u)
+                    e2 = self.E_phi2(e1, vs, vr1, u1)
 
-                    self.optimizer2.zero_grad()
+                    self.opt2.zero_grad()
                     # Penalize the u to let its value not too big
                     arpha = torch.mean(torch.abs(u1))
                     arpha_loss += arpha.item()
@@ -192,8 +192,8 @@ class GN():
                     epoch_loss += loss.item()
                     loss.backward(retain_graph=True)
 
-                    # update the network: Uphi and Ephi
-                    self.optimizer2.step()
+                    # update the network: U_phi and Ephi
+                    self.opt2.step()
 
                     num += e1.size()[0]
 
@@ -217,14 +217,14 @@ class GN():
             self.train_set.swapFC()
 
     def saveModel(self):
-        print('Saving the Uphi model...')
-        torch.save(self.Uphi, model_dir + 'uphi_%02d.pth' % self.seq_index)
-        print('Saving the Vphi model...')
-        torch.save(self.Vphi, model_dir + 'vphi_%02d.pth' % self.seq_index)
-        print('Saving the Ephi1 model...')
-        torch.save(self.Ephi1, model_dir + 'ephi1_%02d.pth' % self.seq_index)
+        print('Saving the U_phi model...')
+        torch.save(self.U_phi, model_dir + 'uphi_%02d.pth' % self.seq_index)
+        print('Saving the V_phi model...')
+        torch.save(self.V_phi, model_dir + 'vphi_%02d.pth' % self.seq_index)
+        print('Saving the E_phi1 model...')
+        torch.save(self.E_phi1, model_dir + 'ephi1_%02d.pth' % self.seq_index)
         print('Saving the Ephi model...')
-        torch.save(self.Ephi2, model_dir + 'ephi2_%02d.pth' % self.seq_index)
+        torch.save(self.E_phi2, model_dir + 'ephi2_%02d.pth' % self.seq_index)
         print('Saving the global variable u...')
         torch.save(self.u, model_dir + 'u_%02d.pth' % self.seq_index)
         print('Done!')
@@ -239,8 +239,8 @@ class GN():
                 vs = self.train_set.getApp(1, vs_index)
                 vr = self.train_set.getApp(0, vr_index)
 
-                e1 = self.Ephi1(e, vs, vr, self.u)
-                vr1 = self.Vphi(e1, vs, vr, self.u)
+                e1 = self.E_phi1(e, vs, vr, self.u)
+                vr1 = self.V_phi(e1, vs, vr, self.u)
                 candidates.append((e1, gt, vs, vr1, vs_index, vr_index))
                 E_CON.append(e1)
                 V_CON.append(vs)
@@ -250,13 +250,13 @@ class GN():
             E = self.train_set.aggregate(E_CON).view(1, -1)
             # This part is the aggregation for vertex
             V = self.train_set.aggregate(V_CON).view(1, -1)
-            u1 = self.Uphi(E, V, self.u)
+            u1 = self.U_phi(E, V, self.u)
             self.u = u1.data
 
             nxt = self.train_set.nxt
             for iteration in candidates:
                 e1, gt, vs, vr1, vs_index, vr_index = iteration
-                e2 = self.Ephi2(e1, vs, vr1, u1)
+                e2 = self.E_phi2(e1, vs, vr1, u1)
                 if gt.item():
                     self.train_set.detections[nxt][vr_index][0] = vr1.data
                 self.train_set.edges[vs_index][vr_index] = e2.data.view(-1)
